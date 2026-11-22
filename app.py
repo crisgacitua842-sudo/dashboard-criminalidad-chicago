@@ -164,37 +164,33 @@ with tab3:
     )
 
     centro = {"lat": 41.84, "lon": -87.68}
-    c1, c2 = st.columns(2)
-    with c1:
-        # Control local: color de los puntos
-        color_por = st.selectbox("Color de los puntos", ["Tipo de delito", "Arresto", "Violencia doméstica"])
-        muestra = df_mapa.sample(min(30000, len(df_mapa)), random_state=42).copy()
-        top8_mapa = df_mapa["Primary Type"].value_counts().head(8).index
-        muestra["Tipo de delito"] = muestra["Primary Type"].where(muestra["Primary Type"].isin(top8_mapa), "OTRO")
-        muestra["Violencia doméstica"] = muestra["Domestico"]
-        orden = {"Tipo de delito": list(top8_mapa) + ["OTRO"], "Arresto": ["Con arresto", "Sin arresto"],
-                 "Violencia doméstica": ["Doméstico", "No doméstico"]}
-        fig = px.scatter_map(muestra, lat="Latitude", lon="Longitude", color=color_por,
-                             category_orders=orden, hover_name="Primary Type",
-                             hover_data={"Area": True, "Location Description": True, "Date": "|%d-%m-%Y %H:%M",
-                                         "Latitude": False, "Longitude": False, color_por: False},
-                             labels={"Area": "Community Area", "Location Description": "Lugar", "Date": "Fecha"},
-                             center=centro, zoom=9.3, height=600, opacity=0.5, map_style="carto-positron",
-                             title=f"Mapa de puntos (muestra de {numero(len(muestra))}, random_state=42)")
-        fig.update_traces(marker={"size": 4})
-        st.plotly_chart(fig)
-    with c2:
-        st.write("")
-        st.write("")
-        # Se agrupan los delitos en celdas de 0,001 grados para no dibujar medio millon de puntos
-        grilla = df_mapa.assign(Latitud=df_mapa["Latitude"].round(3), Longitud=df_mapa["Longitude"].round(3))
-        grilla = grilla.groupby(["Latitud", "Longitud"]).size().reset_index(name="Delitos")
-        fig = px.density_map(grilla, lat="Latitud", lon="Longitud", z="Delitos", radius=8,
-                             hover_data={"Delitos": True, "Latitud": ":.3f", "Longitud": ":.3f"},
-                             center=centro, zoom=9.3, height=600, map_style="carto-positron",
-                             color_continuous_scale="Reds",
-                             title="Mapa de densidad (delitos por celda de 0,001 grados)")
-        st.plotly_chart(fig)
+    # Control local: color de los puntos
+    color_por = st.selectbox("Color de los puntos", ["Tipo de delito", "Arresto", "Violencia doméstica"])
+    muestra = df_mapa.sample(min(30000, len(df_mapa)), random_state=42).copy()
+    top8_mapa = df_mapa["Primary Type"].value_counts().head(8).index
+    muestra["Tipo de delito"] = muestra["Primary Type"].where(muestra["Primary Type"].isin(top8_mapa), "OTRO")
+    muestra["Violencia doméstica"] = muestra["Domestico"]
+    orden = {"Tipo de delito": list(top8_mapa) + ["OTRO"], "Arresto": ["Con arresto", "Sin arresto"],
+             "Violencia doméstica": ["Doméstico", "No doméstico"]}
+    fig = px.scatter_map(muestra, lat="Latitude", lon="Longitude", color=color_por,
+                         category_orders=orden, hover_name="Primary Type",
+                         hover_data={"Area": True, "Location Description": True, "Date": "|%d-%m-%Y %H:%M",
+                                     "Latitude": False, "Longitude": False, color_por: False},
+                         labels={"Area": "Community Area", "Location Description": "Lugar", "Date": "Fecha"},
+                         center=centro, zoom=9.3, height=600, opacity=0.5, map_style="carto-positron",
+                         title=f"Mapa de puntos (muestra de {numero(len(muestra))}, random_state=42)")
+    fig.update_traces(marker={"size": 4})
+    st.plotly_chart(fig)
+
+    # Se agrupan los delitos en celdas de 0,001 grados para no dibujar medio millon de puntos
+    grilla = df_mapa.assign(Latitud=df_mapa["Latitude"].round(3), Longitud=df_mapa["Longitude"].round(3))
+    grilla = grilla.groupby(["Latitud", "Longitud"]).size().reset_index(name="Delitos")
+    fig = px.density_map(grilla, lat="Latitud", lon="Longitud", z="Delitos", radius=8,
+                         hover_data={"Delitos": True, "Latitud": ":.3f", "Longitud": ":.3f"},
+                         center=centro, zoom=9.3, height=600, map_style="carto-positron",
+                         color_continuous_scale="Reds",
+                         title="Mapa de densidad (delitos por celda de 0,001 grados)")
+    st.plotly_chart(fig)
 
     st.markdown(
         "**Interpretación (con todos los datos).** Los delitos se concentran en dos núcleos a la misma latitud, cerca de 41,88: "

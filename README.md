@@ -6,7 +6,7 @@ Dashboard interactivo del examen de Taller de Visualización de la Información 
 
 **Usuario objetivo:** equipos de planificación de patrullaje (policía o municipio) que necesitan decidir en qué zonas y horarios poner recursos.
 
-**App publicada:** ENLACE_APP
+**App publicada:** https://criminalidad-chicago-tvi.streamlit.app
 
 **Versión actual:** beta 2.1.0 (Hito 1)
 
