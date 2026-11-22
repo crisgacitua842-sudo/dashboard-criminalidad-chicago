@@ -121,7 +121,7 @@ with tab1:
                      hover_data={"Porcentaje": ":.2f"}, color_discrete_sequence=[ROJO],
                      title=f"Top 10 por {ver_por.lower()}")
         fig.update_layout(yaxis={"categoryorder": "total ascending"}, xaxis_title="Cantidad de delitos", yaxis_title="")
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, width="stretch")
     with c2:
         top8 = dff["Primary Type"].value_counts().head(8).index
         arbol = dff[dff["Primary Type"].isin(top8)].groupby(["Primary Type", "Arresto"]).size().reset_index(name="Delitos")
@@ -129,7 +129,7 @@ with tab1:
                          color_discrete_map={"Con arresto": ROJO, "Sin arresto": "#D9D5CF", "(?)": "#F4F2EE"},
                          title="Arresto dentro de los 8 tipos más frecuentes")
         fig.update_traces(hovertemplate="%{label}<br>Delitos: %{value:,}<br>%{percentParent:.1%} de su tipo<extra></extra>")
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, width="stretch")
 
 # ---------------- Cuando ----------------
 with tab2:
@@ -140,21 +140,21 @@ with tab2:
                       labels={"Anio": "Año", "Mes": "Mes (1 = enero)", "Delitos": "Cantidad de delitos"},
                       title="Delitos por mes")
         fig.update_xaxes(dtick=1)
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, width="stretch")
     with c2:
         arresto_mes = (dff.groupby(["Anio", "Mes"])["Arrest"].mean() * 100).round(2).reset_index(name="Arresto")
         fig = px.line(arresto_mes, x="Mes", y="Arresto", color="Anio", markers=True, color_discrete_map=COLORES_ANIO,
                       labels={"Anio": "Año", "Mes": "Mes (1 = enero)", "Arresto": "Delitos con arresto (%)"},
                       title="Porcentaje de delitos con arresto por mes")
         fig.update_xaxes(dtick=1)
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, width="stretch")
 
     tabla = pd.crosstab(dff["Dia"], dff["Hora"]).reindex(DIAS).fillna(0)
     fig = px.imshow(tabla, color_continuous_scale="Reds", aspect="auto",
                     labels={"x": "Hora del día (0 a 23)", "y": "Día de la semana", "color": "Delitos"},
                     title="Delitos por día de la semana y hora")
     fig.update_xaxes(dtick=1)
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, width="stretch")
 
 # ---------------- Donde ----------------
 with tab3:
@@ -184,7 +184,7 @@ with tab3:
                          center=centro, zoom=9.5, height=750, opacity=0.5, map_style="carto-positron",
                          title=f"Mapa de puntos (muestra de {numero(len(muestra))}, random_state=42)")
     fig.update_traces(marker={"size": 4})
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, width="stretch")
 
     # Se agrupan los delitos en celdas de 0,001 grados para no dibujar medio millon de puntos
     grilla = df_mapa.assign(Latitud=df_mapa["Latitude"].round(3), Longitud=df_mapa["Longitude"].round(3))
@@ -194,7 +194,7 @@ with tab3:
                          center=centro, zoom=9.5, height=750, map_style="carto-positron",
                          color_continuous_scale="Reds",
                          title="Mapa de densidad (delitos por celda de 0,001 grados)")
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, width="stretch")
 
     st.markdown(
         "**Interpretación (con todos los datos).** Los delitos se concentran en dos núcleos a la misma latitud, cerca de 41,88: "
@@ -222,7 +222,7 @@ with tab4:
                              "Arresto": "Delitos con arresto en el área (%)",
                              "Domestico": "Domésticos (%)"},
                      title="Arresto y narcóticos en las 77 Community Areas (tamaño = cantidad de delitos)")
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, width="stretch")
     if len(areas) > 2:
         r = areas["Narcoticos"].corr(areas["Arresto"])
         st.caption(f"Correlación de Pearson entre % de narcóticos y % de arresto con los filtros actuales: {r:.2f}".replace(".", ","))
@@ -241,5 +241,5 @@ h3.markdown("**El arresto depende del delito.** Narcóticos tiene 99,9 % de arre
 # Datos filtrados
 with st.expander("Ver datos filtrados"):
     st.dataframe(dff[["Date", "Primary Type", "Location Description", "Arresto", "Domestico", "District",
-                       "Area", "Latitude", "Longitude"]].head(1000), hide_index=True)
+                       "Area", "Latitude", "Longitude"]].head(1000), width="stretch", hide_index=True)
     st.caption(f"Primeras 1.000 filas de {numero(len(dff))}.")
