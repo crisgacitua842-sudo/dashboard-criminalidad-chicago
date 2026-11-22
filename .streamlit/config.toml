@@ -1,4 +1,6 @@
+# Tema claro fijo para que la app se vea igual aunque el navegador este en modo oscuro
 [theme]
+base = "light"
 primaryColor = "#B0262E"
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F4F2EE"
