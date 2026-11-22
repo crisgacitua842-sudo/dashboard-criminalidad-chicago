@@ -68,38 +68,42 @@ st.caption(
     "528.455 delitos limpios del Certamen 2. Versión beta 2.1.0."
 )
 
-# Filtros globales
-st.sidebar.header("Filtros")
-anios = st.sidebar.multiselect("Año", ["2015", "2016"], default=["2015", "2016"])
-lista_tipos = df["Primary Type"].value_counts().index.tolist()
-tipos = st.sidebar.multiselect(
-    "Tipo de delito", lista_tipos, placeholder="Todos los tipos",
-    help="Si lo dejas vacío se muestran todos los tipos."
-)
-horas = st.sidebar.slider("Hora del día", 0, 23, (0, 23))
+# Sidebar: filtros globales (afectan a todo el dashboard)
+with st.sidebar:
+    st.header("Filtros")
+    anios = st.multiselect("Año", ["2015", "2016"], default=["2015", "2016"])
+    lista_tipos = df["Primary Type"].value_counts().index.tolist()
+    tipos = st.multiselect(
+        "Tipo de delito", lista_tipos, placeholder="Todos los tipos",
+        help="Si lo dejas vacío se muestran todos los tipos."
+    )
+    hora_min, hora_max = st.slider("Hora del día", min_value=0, max_value=23, value=(0, 23))
 
-df_f = df[df["Anio"].isin(anios) & df["Hora"].between(horas[0], horas[1])]
+# Aplicar los filtros con una mascara
+mask = df["Anio"].isin(anios) & df["Hora"].between(hora_min, hora_max)
 if tipos:
-    df_f = df_f[df_f["Primary Type"].isin(tipos)]
+    mask &= df["Primary Type"].isin(tipos)
 
-if df_f.empty:
+dff = df[mask]
+
+if dff.empty:
     st.warning("No hay delitos con esos filtros. Cambia la selección en el panel lateral.")
     st.stop()
 
-st.sidebar.caption(f"{numero(len(df_f))} delitos seleccionados de {numero(len(df))}.")
+st.sidebar.caption(f"{numero(len(dff))} delitos seleccionados de {numero(len(df))}.")
 
 # KPIs
 arresto_total = df["Arrest"].mean() * 100
 domestico_total = df["Domestic"].mean() * 100
-arresto_f = df_f["Arrest"].mean() * 100
-domestico_f = df_f["Domestic"].mean() * 100
+arresto_f = dff["Arrest"].mean() * 100
+domestico_f = dff["Domestic"].mean() * 100
 
 k1, k2, k3, k4 = st.columns(4)
-k1.metric("Delitos", numero(len(df_f)), delta=f"{pct(len(df_f) / len(df) * 100)} del total", delta_color="off")
+k1.metric("Delitos", numero(len(dff)), delta=f"{pct(len(dff) / len(df) * 100)} del total", delta_color="off")
 k2.metric("Con arresto", pct(arresto_f), delta=f"{arresto_f - arresto_total:+.1f} pp frente al total".replace(".", ","))
 k3.metric("Violencia doméstica", pct(domestico_f),
           delta=f"{domestico_f - domestico_total:+.1f} pp frente al total".replace(".", ","), delta_color="inverse")
-k4.metric("Tipo más frecuente", df_f["Primary Type"].mode()[0])
+k4.metric("Tipo más frecuente", dff["Primary Type"].mode()[0])
 
 tab1, tab2, tab3, tab4 = st.tabs(["Qué delitos", "Cuándo", "Dónde", "Relaciones"])
 
@@ -108,19 +112,19 @@ with tab1:
     c1, c2 = st.columns([3, 2])
     with c1:
         # Control local: solo afecta a este grafico
-        ver_por = st.selectbox("Ver el top 10 por", ["Tipo de delito", "Lugar del delito"])
+        ver_por = st.selectbox("Ver el top 10 por", ["Tipo de delito", "Lugar del delito"], key="sel_top")
         col = "Primary Type" if ver_por == "Tipo de delito" else "Location Description"
-        top = df_f[col].value_counts().head(10).reset_index()
+        top = dff[col].value_counts().head(10).reset_index()
         top.columns = [ver_por, "Delitos"]
-        top["Porcentaje"] = (top["Delitos"] / len(df_f) * 100).round(2)
+        top["Porcentaje"] = (top["Delitos"] / len(dff) * 100).round(2)
         fig = px.bar(top, x="Delitos", y=ver_por, orientation="h", text="Delitos",
                      hover_data={"Porcentaje": ":.2f"}, color_discrete_sequence=[ROJO],
                      title=f"Top 10 por {ver_por.lower()}")
         fig.update_layout(yaxis={"categoryorder": "total ascending"}, xaxis_title="Cantidad de delitos", yaxis_title="")
         st.plotly_chart(fig)
     with c2:
-        top8 = df_f["Primary Type"].value_counts().head(8).index
-        arbol = df_f[df_f["Primary Type"].isin(top8)].groupby(["Primary Type", "Arresto"]).size().reset_index(name="Delitos")
+        top8 = dff["Primary Type"].value_counts().head(8).index
+        arbol = dff[dff["Primary Type"].isin(top8)].groupby(["Primary Type", "Arresto"]).size().reset_index(name="Delitos")
         fig = px.treemap(arbol, path=["Primary Type", "Arresto"], values="Delitos", color="Arresto",
                          color_discrete_map={"Con arresto": ROJO, "Sin arresto": "#D9D5CF", "(?)": "#F4F2EE"},
                          title="Arresto dentro de los 8 tipos más frecuentes")
@@ -131,21 +135,21 @@ with tab1:
 with tab2:
     c1, c2 = st.columns(2)
     with c1:
-        por_mes = df_f.groupby(["Anio", "Mes"]).size().reset_index(name="Delitos")
+        por_mes = dff.groupby(["Anio", "Mes"]).size().reset_index(name="Delitos")
         fig = px.line(por_mes, x="Mes", y="Delitos", color="Anio", markers=True, color_discrete_map=COLORES_ANIO,
                       labels={"Anio": "Año", "Mes": "Mes (1 = enero)", "Delitos": "Cantidad de delitos"},
                       title="Delitos por mes")
         fig.update_xaxes(dtick=1)
         st.plotly_chart(fig)
     with c2:
-        arresto_mes = (df_f.groupby(["Anio", "Mes"])["Arrest"].mean() * 100).round(2).reset_index(name="Arresto")
+        arresto_mes = (dff.groupby(["Anio", "Mes"])["Arrest"].mean() * 100).round(2).reset_index(name="Arresto")
         fig = px.line(arresto_mes, x="Mes", y="Arresto", color="Anio", markers=True, color_discrete_map=COLORES_ANIO,
                       labels={"Anio": "Año", "Mes": "Mes (1 = enero)", "Arresto": "Delitos con arresto (%)"},
                       title="Porcentaje de delitos con arresto por mes")
         fig.update_xaxes(dtick=1)
         st.plotly_chart(fig)
 
-    tabla = pd.crosstab(df_f["Dia"], df_f["Hora"]).reindex(DIAS).fillna(0)
+    tabla = pd.crosstab(dff["Dia"], dff["Hora"]).reindex(DIAS).fillna(0)
     fig = px.imshow(tabla, color_continuous_scale="Reds", aspect="auto",
                     labels={"x": "Hora del día (0 a 23)", "y": "Día de la semana", "color": "Delitos"},
                     title="Delitos por día de la semana y hora")
@@ -154,10 +158,10 @@ with tab2:
 
 # ---------------- Donde ----------------
 with tab3:
-    nulos = df_f["Latitude"].isnull().sum()
-    ceros = ((df_f["Latitude"] == 0) | (df_f["Longitude"] == 0)).sum()
-    fuera = ((df_f["Latitude"] < 41.6) | (df_f["Latitude"] > 42.1) | (df_f["Longitude"] < -88) | (df_f["Longitude"] > -87.5)).sum()
-    df_mapa = df_f.dropna(subset=["Latitude", "Longitude"])
+    nulos = dff["Latitude"].isnull().sum()
+    ceros = ((dff["Latitude"] == 0) | (dff["Longitude"] == 0)).sum()
+    fuera = ((dff["Latitude"] < 41.6) | (dff["Latitude"] > 42.1) | (dff["Longitude"] < -88) | (dff["Longitude"] > -87.5)).sum()
+    df_mapa = dff.dropna(subset=["Latitude", "Longitude"])
     st.caption(
         f"Coordenadas inválidas: {numero(nulos)} sin ubicación, {numero(ceros)} en cero y {numero(fuera)} fuera de Chicago. "
         f"Se excluyen solo de los mapas; quedan {numero(len(df_mapa))} delitos con ubicación."
@@ -165,7 +169,7 @@ with tab3:
 
     centro = {"lat": 41.835, "lon": -87.70}
     # Control local: color de los puntos
-    color_por = st.selectbox("Color de los puntos", ["Tipo de delito", "Arresto", "Violencia doméstica"])
+    color_por = st.selectbox("Color de los puntos", ["Tipo de delito", "Arresto", "Violencia doméstica"], key="sel_color")
     muestra = df_mapa.sample(min(30000, len(df_mapa)), random_state=42).copy()
     top8_mapa = df_mapa["Primary Type"].value_counts().head(8).index
     muestra["Tipo de delito"] = muestra["Primary Type"].where(muestra["Primary Type"].isin(top8_mapa), "OTRO")
@@ -203,7 +207,7 @@ with tab3:
 
 # ---------------- Relaciones ----------------
 with tab4:
-    areas = df_f.groupby("Area").agg(
+    areas = dff.groupby("Area").agg(
         Delitos=("Primary Type", "size"),
         Arresto=("Arrest", "mean"),
         Narcoticos=("Primary Type", lambda s: (s == "NARCOTICS").mean()),
@@ -236,6 +240,6 @@ h3.markdown("**El arresto depende del delito.** Narcóticos tiene 99,9 % de arre
 
 # Datos filtrados
 with st.expander("Ver datos filtrados"):
-    st.dataframe(df_f[["Date", "Primary Type", "Location Description", "Arresto", "Domestico", "District",
+    st.dataframe(dff[["Date", "Primary Type", "Location Description", "Arresto", "Domestico", "District",
                        "Area", "Latitude", "Longitude"]].head(1000), hide_index=True)
-    st.caption(f"Primeras 1.000 filas de {numero(len(df_f))}.")
+    st.caption(f"Primeras 1.000 filas de {numero(len(dff))}.")
